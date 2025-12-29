@@ -6,5 +6,25 @@ cd "$ROOT_DIR"
 go build -o bin/tracker-server ./cmd/tracker-server
 go build -o bin/tracker-client ./cmd/tracker-client
 
-./scripts/install_brew_service.sh
-brew services restart agent-tracker-server
+# 使用跨平台服务安装脚本
+./scripts/install_service.sh
+
+# 根据平台重启服务
+OS="$(uname -s)"
+case "$OS" in
+  Darwin)
+    brew services restart agent-tracker-server
+    ;;
+  Linux)
+    # 尝试直接重启（如果当前用户运行）
+    if systemctl --user restart agent-tracker-server 2>/dev/null; then
+      echo "Service restarted successfully."
+    else
+      # 如果失败，可能是通过 sudo 运行的，尝试切换到原用户
+      REAL_USER="${SUDO_USER:-${USER}}"
+      if [[ -n "$REAL_USER" ]] && [[ "$REAL_USER" != "root" ]]; then
+        sudo -u "$REAL_USER" systemctl --user restart agent-tracker-server 2>/dev/null || true
+      fi
+    fi
+    ;;
+esac
